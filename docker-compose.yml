@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: dailybasket_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dailybasket_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dailybasket_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dailybasket-net
+
+  # 2. Spring Boot 3 Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dailybasket_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/dailybasket_db
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgrespassword
+      JWT_SECRET: 9a6747f3c126d7da49be8a2968efc965762043a0ccf72e2c86e0216674e62040f1eb2e4b96ef32697a5a8d014082dc879da7342d48e3829dc72d555003b5ec98
+      CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:5173,http://frontend
+    ports:
+      - "8080:8080"
+    networks:
+      - dailybasket-net
+
+  # 3. React + Vite Frontend (Served with Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dailybasket_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - dailybasket-net
+
+volumes:
+  postgres_data:
+
+networks:
+  dailybasket-net:
+    driver: bridge
