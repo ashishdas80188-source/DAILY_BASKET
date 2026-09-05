@@ -56,15 +56,24 @@ public class ProductService {
         }
 
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Product> productPage = productRepository.filterProducts(
-                categoryId,
-                (query != null && !query.isBlank()) ? query.trim() : null,
-                minPrice,
-                maxPrice,
-                inStock,
-                minRating,
-                pageable
-        );
+
+        boolean hasFilters = (categoryId != null) || (query != null && !query.isBlank())
+                || (minPrice != null) || (maxPrice != null) || (inStock != null) || (minRating != null);
+
+        Page<Product> productPage;
+        if (!hasFilters) {
+            productPage = productRepository.findAll(pageable);
+        } else {
+            productPage = productRepository.filterProducts(
+                    categoryId,
+                    (query != null && !query.isBlank()) ? query.trim() : null,
+                    minPrice,
+                    maxPrice,
+                    inStock,
+                    minRating,
+                    pageable
+            );
+        }
 
         return productPage.map(this::mapToDTO);
     }
